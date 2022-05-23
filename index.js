@@ -41,8 +41,17 @@ async function run() {
 
         app.post('/order', async (req, res) => {
             const order = req.body;
-            const result = orderCollection.insertOne(order);
-            res.send(result);
+            const query = { _id: order._id, status: order.status, name: order.name };
+            const status = query.status;
+            // re-order issue
+            const exists = await orderCollection.findOne(query);
+            if (exists && status === 'unpaid') {
+                return res.send({ success: false, order: exists })
+            } else {
+                const result = orderCollection.insertOne(order);
+                res.send({ success: true, result });
+            }
+
         })
 
 
