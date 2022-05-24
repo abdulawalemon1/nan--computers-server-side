@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+var jwt = require('jsonwebtoken');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -17,6 +18,23 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.0xhsj.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+//verify jwt
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'Unauthorized access' })
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: 'Forbidden Access' })
+        }
+        req.decoded = decoded;
+        next();
+    });
+}
+
+
 async function run() {
     try {
         await client.connect();
@@ -24,6 +42,7 @@ async function run() {
         const orderCollection = client.db('manufacturer-website').collection('orders');
         const paymentCollection = client.db('manufacturer-website').collection('payments');
         const reviewCollection = client.db('manufacturer-website').collection('reviews');
+        const userCollection = client.db('manufacturer-website').collection('users');
 
 
 
@@ -54,11 +73,17 @@ async function run() {
             }
 
         });
-        app.get('/order', async (req, res) => {
+        app.get('/order', verifyJWT, async (req, res) => {
             const email = req.query.email;
-            const query = { email: email };
-            const orders = await orderCollection.find(query).toArray();
-            res.send(orders);
+            const decodedEmail = req.decoded.email;
+            if (email === decodedEmail) {
+                const query = { email: email };
+                const orders = await orderCollection.find(query).toArray();
+                return res.send(orders);
+            } else {
+                return res.status(403).send({ message: 'Forbidden Access' })
+            }
+
         });
 
         app.get('/order/:id', async (req, res) => {
@@ -89,7 +114,7 @@ async function run() {
             const updatedOrder = await orderCollection.updateOne(filter, updatedDoc)
             res.send(updatedDoc);
 
-        })
+        });
 
 
 
@@ -116,6 +141,27 @@ async function run() {
             const query = {};
             const userReviews = await reviewCollection.find(query).toArray();
             res.send(userReviews);
+        });
+
+        //users
+        app.get('/users', async (req, res) => {
+            const users = await userCollection.find().toArray();
+            res.send(users);
+        })
+        app.put('/user/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = req.body;
+            const filter = { email: email };
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: user,
+
+            };
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+            const accessToken = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
+            res.send({ result, accessToken });
+
+
         });
     }
     finally {
