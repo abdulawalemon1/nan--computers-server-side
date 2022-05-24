@@ -108,15 +108,14 @@ async function run() {
         //review
         app.post('/reviews', async (req, res) => {
             const userReviews = req.body;
-            const query = { reviewId: userReviews._id };
-            const exists = await reviewCollection.findOne(query);
-            if (exists) {
-                return res.send({ success: false, userReviews: exists })
-            } else {
-                const result = reviewCollection.insertOne(userReviews);
-                res.send({ success: true, result });
-            }
+            const result = reviewCollection.insertOne(userReviews);
+            res.send({ success: true, result });
 
+        });
+        app.get('/reviews', async (req, res) => {
+            const query = {};
+            const userReviews = await reviewCollection.find(query).toArray();
+            res.send(userReviews);
         });
     }
     finally {
