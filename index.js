@@ -23,6 +23,7 @@ async function run() {
         const productsCollection = client.db('manufacturer-website').collection('products');
         const orderCollection = client.db('manufacturer-website').collection('orders');
         const paymentCollection = client.db('manufacturer-website').collection('payments');
+        const reviewCollection = client.db('manufacturer-website').collection('reviews');
 
 
 
@@ -103,6 +104,20 @@ async function run() {
             });
             res.send({ clientSecret: paymentIntent.client_secret });
         })
+
+        //review
+        app.post('/reviews', async (req, res) => {
+            const userReviews = req.body;
+            const query = { reviewId: userReviews._id };
+            const exists = await reviewCollection.findOne(query);
+            if (exists) {
+                return res.send({ success: false, userReviews: exists })
+            } else {
+                const result = reviewCollection.insertOne(userReviews);
+                res.send({ success: true, result });
+            }
+
+        });
     }
     finally {
 
