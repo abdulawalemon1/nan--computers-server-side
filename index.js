@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const app = express();
 
 //middleware
@@ -22,6 +22,7 @@ async function run() {
         await client.connect();
         const productsCollection = client.db('manufacturer-website').collection('products');
         const orderCollection = client.db('manufacturer-website').collection('orders');
+        const paymentCollection = client.db('manufacturer-website').collection('payments');
 
 
 
@@ -37,24 +38,71 @@ async function run() {
             const query = { _id: ObjectId(id) };
             const product = await productsCollection.findOne(query);
             res.send(product);
-        })
+        });
 
         app.post('/order', async (req, res) => {
             const order = req.body;
-            const query = { _id: order._id, status: order.status, name: order.name };
+            const query = { productId: order.productId, name: order.name };
             const status = query.status;
-            // re-order issue
             const exists = await orderCollection.findOne(query);
-            if (exists && status === 'unpaid') {
+            if (exists) {
                 return res.send({ success: false, order: exists })
             } else {
                 const result = orderCollection.insertOne(order);
                 res.send({ success: true, result });
             }
 
+        });
+        app.get('/order', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const orders = await orderCollection.find(query).toArray();
+            res.send(orders);
+        });
+
+        app.get('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) };
+            const order = await orderCollection.findOne(query);
+            res.send(order);
+        });
+
+        app.delete('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await orderCollection.deleteOne(filter);
+            res.send(result);
+        });
+
+        app.patch('/order/:id', async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const filter = { _id: ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    status: 'paid',
+                    transactionId: payment.transactionId
+                }
+            }
+            const result = await paymentCollection.insertOne(payment);
+            const updatedOrder = await orderCollection.updateOne(filter, updatedDoc)
+            res.send(updatedDoc);
+
         })
 
 
+
+        app.post('/create-payment-intent', async (req, res) => {
+            const order = req.body;
+            const amount = order.amount * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+
+            });
+            res.send({ clientSecret: paymentIntent.client_secret });
+        })
     }
     finally {
 
