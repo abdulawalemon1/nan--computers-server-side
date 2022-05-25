@@ -45,6 +45,13 @@ async function run() {
         const userCollection = client.db('manufacturer-website').collection('users');
 
 
+        //products
+        app.post('/products', async (req, res) => {
+            const product = req.body;
+            const result = productsCollection.insertOne(product);
+            res.send({ success: true, result });
+
+        });
 
         app.get('/products', async (req, res) => {
             const query = {};
@@ -149,15 +156,31 @@ async function run() {
             res.send(users);
         });
 
-        app.put('/user/admin/:email', async (req, res) => {
+        app.get('/admin/:email', async (req, res) => {
             const email = req.params.email;
-            const filter = { email: email };
-            const updateDoc = {
-                $set: { role: 'admin' },
+            const user = await userCollection.findOne({ email: email });
+            const isAdmin = user.role === 'admin';
+            res.send({ admin: isAdmin });
+        })
 
-            };
-            const result = await userCollection.updateOne(filter, updateDoc);
-            res.send(result);
+
+        app.put('/user/admin/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            const requester = req.decoded.email;
+            requesterAccount = await userCollection.findOne({ email: requester });
+            if (requesterAccount.role === 'admin') {
+                const filter = { email: email };
+                const updateDoc = {
+                    $set: { role: 'admin' },
+
+                };
+                const result = await userCollection.updateOne(filter, updateDoc);
+                res.send(result);
+            }
+            else {
+                res.status(403).send({ message: 'Forbidden Access' })
+            }
+
 
 
         });
