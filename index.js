@@ -69,15 +69,9 @@ async function run() {
 
         app.post('/order', async (req, res) => {
             const order = req.body;
-            const query = { productId: order.productId, name: order.name };
-            const status = query.status;
-            const exists = await orderCollection.findOne(query);
-            if (exists) {
-                return res.send({ success: false, order: exists })
-            } else {
-                const result = orderCollection.insertOne(order);
-                res.send({ success: true, result });
-            }
+            const result = orderCollection.insertOne(order);
+            res.send({ success: true, result });
+
 
         });
         app.get('/order', verifyJWT, async (req, res) => {
@@ -196,7 +190,7 @@ async function run() {
             };
             const result = await userCollection.updateOne(filter, updateDoc, options);
             const accessToken = jwt.sign({ email: email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1d' })
-            res.send({ result, accessToken });
+            res.send({ success: true, result, accessToken });
 
 
         });
