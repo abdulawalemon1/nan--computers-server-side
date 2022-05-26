@@ -8,7 +8,12 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const app = express();
 
 //middleware
-app.use(cors());
+const corsConfig = {
+    origin: ['https://manufacturer-website-a4b39.web.app/'],
+    credentials: true,
+    methods: ["GET", "POST", "DELETE", "PUT"],
+}
+app.use(cors(corsConfig));
 app.use(express.json());
 
 
