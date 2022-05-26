@@ -9,12 +9,18 @@ const app = express();
 
 //middleware
 const corsConfig = {
-    origin: ['https://manufacturer-website-a4b39.web.app/'],
+    origin: '*',
     credentials: true,
-    methods: ["GET", "POST", "DELETE", "PUT"],
+    methods: ['GET', 'POST', 'PUT', 'DELETE']
 }
-app.use(cors(corsConfig));
-app.use(express.json());
+app.use(cors(corsConfig))
+app.options("*", cors(corsConfig))
+app.use(express.json())
+app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*")
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept,authorization")
+    next()
+})
 
 
 
